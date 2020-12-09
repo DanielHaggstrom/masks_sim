@@ -1,10 +1,15 @@
-# importamos todas las librerías
 import math
 import random
 from datetime import timedelta, datetime, time
 import numpy as np
 import pandas
 import logging
+
+
+# clase de error personalizado
+class FullBuilding(Exception):
+    """Error lanzado cuando una persona intenta entrar en un edificio lleno."""
+    pass
 
 
 # Clase básica Base_Building
@@ -25,7 +30,7 @@ class Base_Building:
         self.occupancy.remove(person)
         person.building = None
 
-    def contact(self, mod_infection):
+    def roll(self, mod_infection):
         """Las mascarillas presentes entran en contacto, pudiendo infectarse."""
         negative = [person for person in self.occupancy if person.covid == "Negativo"]
         infected_num = len([person for person in self.occupancy if person.covid == "Positivo"])
@@ -61,7 +66,7 @@ class Building(Base_Building):
     def enter(self, person):
         """Una mascarilla entra en el edificio."""
         if len(self.occupancy) >= self.capacity:  # será necesario usar try
-            raise Exception("Edificio Lleno.")
+            raise FullBuilding("Edificio Lleno.")
         super().enter(person)
 
 
@@ -84,15 +89,17 @@ class Hospital(Building):
             raise Exception("Hospital lleno de pacientes.")
         self.hospitalized.append(person)
         person.building = self
+        person.isHospitalized = True
 
     def discharge(self, person):
         """Un paciente es dado de alta."""
         self.hospitalized.remove(person)
         person.building = None
+        person.isHospitalized = False
 
     def contact(self):
         """Contagios entre todos los visitantes del hospital."""
-        super().contact(Hospital.mod_infection)  # todo implementar correctamente el contagio en un hospital
+        super().roll(Hospital.mod_infection)  # todo implementar correctamente el contagio en un hospital
 
     def update(self):
         """Registra a todos los visitantes y enfermos en la base de datos."""
@@ -112,7 +119,7 @@ class Pharmacy(Building):
         super().__init__(name, weight, capacity)
 
     def contact(self):
-        super().contact(Pharmacy.mod_infection)
+        super().roll(Pharmacy.mod_infection)
 
 
 # clase Centro Educativo
@@ -124,7 +131,7 @@ class Learning_Center(Building):
         super().__init__(name, weight, capacity)
 
     def contact(self):
-        super().contact(Learning_Center.mod_infection)
+        super().roll(Learning_Center.mod_infection)
 
 
 # clase Workplace
@@ -136,7 +143,7 @@ class Workplace(Building):
         super().__init__(name, weight, capacity)
 
     def contact(self):
-        super().contact(Workplace.mod_infection)
+        super().roll(Workplace.mod_infection)
 
 
 # Clase Market
@@ -148,7 +155,7 @@ class Market(Building):
         super().__init__(name, weight, capacity)
 
     def contact(self):
-        super().contact(Market.mod_infection)
+        super().roll(Market.mod_infection)
 
 
 # Clase Mall
@@ -160,7 +167,7 @@ class Mall(Building):
         super().__init__(name, weight, capacity)
 
     def contact(self):
-        super().contact(Market.mod_infection)
+        super().roll(Market.mod_infection)
 
 
 # clase Person
@@ -181,6 +188,7 @@ class Person:
         self.id = id
         self.building = Person.home  # edificio en el que se encuentra actualmente
         self.isAlive = True  # la persona empieza viva
+        self.isHospitalized = False  # no empieza en el hospital
         Person.alive.append(self)
         # decidimos si empieza infectado o no
         if random.random() > Person.p_covid:
@@ -203,16 +211,14 @@ class Person:
     def back_home(self):
         """La persona vuelve a su casa."""
         if self.building != Person.home:
-            # todo esto es feo, arreglar
-            if isinstance(self.building, Hospital):
-                if self in self.building.hospitalized:
-                    return None
+            if self.isHospitalized:  # si está en el hospital, se queda allí
+                return None
             self.building.exit(self)
             self.__enter_home()
 
     def move(self):
         """La persona se mueve, según sus circunstancias."""
-        raise Exception("Método no implementado.")  # se implementa en cada clase hija
+        raise NotImplementedError("Método no implementado.")  # se implementa en cada clase hija
 
     def infect(self):
         """La persona se contagia de COVID-19."""
@@ -244,7 +250,7 @@ class Person:
             self.building.exit(self)
             try:
                 hospital.admission(self)
-            except:
+            except FullBuilding:
                 self.__enter_home()
         # comprobamos si se recupera o fallece
         if Person.current_datetime == self.recovery_datetime:
@@ -253,24 +259,16 @@ class Person:
                 self.isAlive = False
                 Person.alive.remove(self)
                 Person.dead.append(self)
-                # todo es feo, arreglar
-                if isinstance(self.building, Hospital):
-                    if self in self.building.hospitalized:
-                        self.building.discharge(self)
-                    else:
-                        self.building.exit(self)
+                if self.isHospitalized:
+                    self.building.discharge(self)
                 else:
                     self.building.exit(self)
                 return None
             else:
                 self.covid = "Inmune"
-                # todo es feo, arreglar
                 # recibe el alta
-                if isinstance(self.building, Hospital):
-                    if self in self.building.hospitalized:
-                        self.building.discharge(self)
-                    else:
-                        self.building.exit(self)
+                if self.isHospitalized:
+                    self.building.discharge(self)
                 else:
                     self.building.exit(self)
                 self.__enter_home()
@@ -300,11 +298,10 @@ class Person:
 
     @staticmethod
     def try_loop(person, max_attempts=5):
-        """Una persona intenta ejecutar el método move() de su clase. Si tras varios intentos no logra encontrar un sitio con sitio, se va a casa."""
-        # todo es feo, arreglar
-        if isinstance(person.building, Hospital):
-            if person in person.building.hospitalized:
-                return None
+        """Una persona intenta ejecutar el método move() de su clase.
+        Si tras varios intentos no logra encontrar un sitio con sitio, se va a casa."""
+        if person.isHospitalized:
+            return None
         person.at_place = person.building == person.place
         if person.at_place and random.random() > 0.3 * type(person.building).leave_chance:  # todo cambiar esto¿?
             # día normal
@@ -326,7 +323,7 @@ class Person:
                 # hay que hacer varios intentos en caso de que esté lleno
                 final_building = Person.select_building(building_type)
                 final_building.enter(person)
-            except:
+            except FullBuilding:
                 continue
             else:
                 break
@@ -381,10 +378,10 @@ class Stay_at_home(Person):
 
 
 # funciones útiles
-def daterange(start_date, end_date):
+def daterange(starting_date, ending_date):
     """Generar rango de fechas entre las fechas indicadas."""
-    for n in range(int((end_date - start_date).total_seconds() / 3600)):
-        yield start_date + timedelta(hours=n)
+    for count in range(int((ending_date - starting_date).total_seconds() / 3600)):
+        yield start_date + timedelta(hours=count)
 
 
 def time_in_range(start, end, x):
@@ -470,14 +467,14 @@ Person.building_dict = {"Trabajo": [Workplace("Trabajo 1", 1, n * 0.1),
 # creamos la gente
 Person.alive = []  # borramos la gente de la ejecución anterior
 Person.dead = []
-for i in range(n):
+for num in range(n):
     person_type = random.choices(population=person_types, weights=person_weights)[0]
     if person_type == "Worker":
-        Worker(i)
+        Worker(num)
     elif person_type == "Student":
-        Student(i)
+        Student(num)
     elif person_type == "Stay at home":
-        Stay_at_home(i)
+        Stay_at_home(num)
 Person.home.occupancy = Person.alive.copy()
 poblacion = Person.alive.copy()
 
