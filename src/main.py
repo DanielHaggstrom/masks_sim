@@ -381,7 +381,7 @@ class Stay_at_home(Person):
 def daterange(starting_date, ending_date):
     """Generar rango de fechas entre las fechas indicadas."""
     for count in range(int((ending_date - starting_date).total_seconds() / 3600)):
-        yield start_date + timedelta(hours=count)
+        yield starting_date + timedelta(hours=count)
 
 
 def time_in_range(start, end, x):
