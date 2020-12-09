@@ -392,7 +392,7 @@ def time_in_range(start, end, x):
         return start <= x or x <= end
 
 
-def daily_test(people_list, masks_df, data_db):
+def daily_test(people_list, masks_dict, data_db):
     """Perform a COVID-19 test and store the result. Call daily"""
     # todo masks_df usa pandas, y eso es lento, usar listas
     date = Person.current_datetime.date()
@@ -407,7 +407,7 @@ def daily_test(people_list, masks_df, data_db):
     data_db["Fallecidos"].append(col_masks_df.count(-1))
     data_db["Contagiados"].append(col_masks_df.count(1))
     data_db["Inmunizados"].append(len([x for x in people_list if x.covid == "Inmune"]))
-    masks_df[date] = col_masks_df
+    masks_dict[date] = col_masks_df
 
 
 # iniciamos la ejecución
@@ -488,8 +488,7 @@ for value in Person.building_dict.values():
     edificios.extend(value)
 
 # creamos los dataframes
-dataframes = {edificio.name: pandas.DataFrame(columns=["fecha y hora", "id"]) for edificio in edificios}
-mascarillas = pandas.DataFrame(index=range(n))
+mascarillas = {"id": [mask for mask in range(n)]}
 datos = {"Fallecidos": [], "Contagiados": [], "Inmunizados": [], "Fecha": []}
 
 # iniciamos la simulación
@@ -523,10 +522,12 @@ for single_date in daterange(start_date, end_date):
         for edificio in edificios:
             edificio.contact()
 
+print("Guardando datos.")
 # guardamos los datos
 for edificio in edificios:
     df = pandas.DataFrame.from_dict(edificio.db)
     df.to_csv(edificio.name + ".csv", sep=";")
+mascarillas = pandas.DataFrame.from_dict(mascarillas).set_index("id")
 mascarillas.to_csv("mascarillas.csv", sep=";")
 datos_df = pandas.DataFrame.from_dict(datos).set_index("Fecha")
 datos_df.to_csv("datos_diarios.csv", sep=";")
