@@ -4,6 +4,22 @@ from datetime import timedelta
 import logging
 import numpy as np
 from buildings import *
+from errors import *
+
+
+class Covid:
+    """Constantes que representan los distintos niveles de severidad de la enfermedad."""
+    NEGATIVE = "NEGATIVE"
+    ASINTOMATIC = "ASINTOMATIC"
+    LOW = "LOW"
+    HIGH = "HIGH"
+    IMMUNE = "IMMUNE"
+
+
+class PCR:
+    """Constantes del test PCR."""
+    NEGATIVE = False
+    POSITIVE = True
 
 
 # clase Person
@@ -12,10 +28,9 @@ class Person:
     p_infect = None  # probabilidad de ser infectado durante una hora por una persona positiva
     p_mortality = None  # probabilidad de fallecer por la infección
     hospital_chance = None  # probabilidad de ir al hospital cuando se tiene un pcr positivo
-    immunity = None  # días de inmunidad después de recuperarte
-    incubation_time = None  # tiempo de incubación
     current_datetime = None  # debe ser actualizada cada hora, e inicializada al principio de la simulación
     building_dict = None  # keys con los tipos de edificios, y los valores son listas de los edificios de cada tipo
+    covid_chances = {}
     alive = []  # contiene a la gente viva
     dead = []  # contiene a los fallecidos
     home = Home()  # el hogar
@@ -26,19 +41,17 @@ class Person:
         self.isAlive = True  # la persona empieza viva
         self.isHospitalized = False  # no empieza en el hospital
         Person.alive.append(self)
-        # decidimos si empieza infectado o no
-        if random.random() > Person.p_covid:
-            self.covid = "Negativo"  # si tiene COVID-19 o no
-            self.pcr = "Negativo"  # resultado del PCR
+        # decidimos si empieza infectado o no, y con qué severidad
+        self.covid = Person.__covid_decider()
+        self.pcr = PCR.NEGATIVE
+        if self.covid == Covid.NEGATIVE:
             self.pcr_datetime = None  # fecha a partir de la cual empieza a dar positivo en el PCR
             self.recovery_datetime = None  # fecha en la que se recupera, si no fallece
             self.immunity_datetime = None  # fecha en la que se termina la inmunidad
         else:
-            self.covid = "Positivo"
-            self.pcr = "Negativo"
-            self.pcr_datetime = Person.current_datetime + timedelta(days=Person.incubation_time)
-            self.recovery_datetime = self.pcr_datetime + timedelta(days=Person.get_disease_length())
-            self.immunity_datetime = self.recovery_datetime + timedelta(days=Person.immunity)
+            self.pcr_datetime = Person.current_datetime + timedelta(days=Person.__get_incubation_length())
+            self.recovery_datetime = self.pcr_datetime + timedelta(days=Person.__get_disease_length())
+            self.immunity_datetime = self.recovery_datetime + timedelta(days=Person.__get_immunity_length())
 
     def __enter_home(self):
         """La persona entra en su casa."""
@@ -59,14 +72,14 @@ class Person:
     def infect(self):
         """La persona se contagia de COVID-19."""
         logging.debug("persona " + str(self.id) + " ha sido infectada")
-        self.covid = "Positivo"
-        self.pcr_datetime = Person.current_datetime + timedelta(days=Person.incubation_time)
-        self.recovery_datetime = self.pcr_datetime + timedelta(days=Person.get_disease_length())
-        self.immunity_datetime = self.recovery_datetime + timedelta(days=Person.immunity)
+        self.covid = Person.__covid_decider(True)
+        self.pcr_datetime = Person.current_datetime + timedelta(days=Person.__get_incubation_length())
+        self.recovery_datetime = self.pcr_datetime + timedelta(days=Person.__get_disease_length())
+        self.immunity_datetime = self.recovery_datetime + timedelta(days=Person.__get_immunity_length())
 
     def contact(self, number_of_infected, mod_infection):
         """La persona hace contacto con un número de infectados."""
-        if self.covid != "Negativo":
+        if self.covid != Covid.NEGATIVE:
             return None
         for i in range(number_of_infected):
             threshold = Person.p_infect * mod_infection
@@ -78,10 +91,10 @@ class Person:
         """Se comprueba el estado de la persona. Se debe llamar cada hora."""
         # vemos si el PCR debe dar positivo
         if Person.current_datetime == self.pcr_datetime:
-            self.pcr = "Positivo"
+            self.pcr = PCR.POSITIVE
         # si PCR es positivo y no está en un hospital, hay una probabilidad de ser ingresado
-        if self.pcr == "Positivo" and not isinstance(self.building,
-                                                     Hospital) and random.random() < Person.hospital_chance:
+        # todo cambiar probabilidades de hospital según severidad
+        if self.pcr == PCR.POSITIVE and not self.isHospitalized and random.random() < Person.hospital_chance:
             hospital = Person.select_building("Hospital")
             self.building.exit(self)
             try:
@@ -90,7 +103,7 @@ class Person:
                 self.__enter_home()
         # comprobamos si se recupera o fallece
         if Person.current_datetime == self.recovery_datetime:
-            self.pcr = "Negativo"
+            self.pcr = PCR.NEGATIVE
             if random.random() < Person.p_mortality:
                 self.isAlive = False
                 Person.alive.remove(self)
@@ -101,7 +114,7 @@ class Person:
                     self.building.exit(self)
                 return None
             else:
-                self.covid = "Inmune"
+                self.covid = Covid.IMMUNE
                 # recibe el alta
                 if self.isHospitalized:
                     self.building.discharge(self)
@@ -110,15 +123,50 @@ class Person:
                 self.__enter_home()
         # comprobamos si pierde la inmunidad
         if Person.current_datetime == self.immunity_datetime:
-            self.covid = "Negativo"
+            self.covid = Covid.NEGATIVE
 
     @staticmethod
-    def get_disease_length():
+    def __get_disease_length():
+        # todo cambiar para una longitud más realista
         length = 0
         while length <= 10:
             length = np.random.normal(loc=20, scale=7)
         length = math.floor(length)
         return length
+
+    @staticmethod
+    def __get_incubation_length():
+        # todo cambiar para una longitud más realista
+        length = 0
+        while length <= 5:
+            length = np.random.normal(loc=9, scale=2)
+        length = math.floor(length)
+        return length
+
+    @staticmethod
+    def __get_immunity_length():
+        # todo cambiar para una longitud más realista
+        length = 0
+        while length <= 140:
+            length = np.random.normal(loc=170, scale=30)
+        length = math.floor(length)
+        return length
+
+    @staticmethod
+    def __covid_decider(skip=False):
+        """Decide si una persona tiene COVID-19 y la severidad."""
+        # las probabilidades de la severidad asumen que la persona ya tiene coronavirus
+        if random.random() > Person.p_covid or skip:
+            return Covid.NEGATIVE
+        # aquí necesitamos dos números para separar en tres segmentos nuestro resultado
+        threshold_one = Person.covid_chances[0]
+        threshold_two = Person.covid_chances[1]
+        aux = random.random()
+        if aux < threshold_one:
+            return Covid.ASINTOMATIC
+        if aux < threshold_two:
+            return Covid.LOW
+        return Covid.HIGH
 
     @staticmethod
     def select_building(building_type):

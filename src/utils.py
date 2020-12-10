@@ -17,7 +17,7 @@ def time_in_range(start, end, x):
 
 
 def daily_test(people_list, masks_dict, data_db):
-    """Perform a COVID-19 test and store the result. Call daily"""
+    """Realizar un test de COVID-19 y guardar los resultados. Llamar cada día."""
     date = Person.current_datetime.date()
     col_masks_df = []
     for person in people_list:
