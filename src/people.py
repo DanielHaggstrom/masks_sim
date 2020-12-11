@@ -93,18 +93,20 @@ class Person:
         if Person.current_datetime == self.pcr_datetime:
             self.pcr = PCR.POSITIVE
         # si PCR es positivo y no está en un hospital, hay una probabilidad de ser ingresado
-        # todo cambiar probabilidades de hospital según severidad
-        if self.pcr == PCR.POSITIVE and not self.isHospitalized and random.random() < Person.hospital_chance:
+        if self.pcr == PCR.POSITIVE and not self.isHospitalized and\
+                self.covid == Covid.HIGH and random.random() < Person.hospital_chance:
             hospital = Person.select_building("Hospital")
             self.building.exit(self)
             try:
                 hospital.admission(self)
             except FullBuilding:
                 self.__enter_home()
+        if self.pcr == PCR.POSITIVE and self.covid == Covid.LOW:
+            self.back_home()
         # comprobamos si se recupera o fallece
         if Person.current_datetime == self.recovery_datetime:
             self.pcr = PCR.NEGATIVE
-            if random.random() < Person.p_mortality:
+            if self.covid == Covid.HIGH and random.random() < Person.p_mortality:
                 self.isAlive = False
                 Person.alive.remove(self)
                 Person.dead.append(self)
@@ -185,6 +187,8 @@ class Person:
         """Una persona intenta ejecutar el método move() de su clase.
         Si tras varios intentos no logra encontrar un sitio con sitio, se va a casa."""
         if person.isHospitalized:
+            return None
+        if person.pcr == PCR.POSITIVE and person.covid == Covid.LOW:
             return None
         person.at_place = person.building == person.place
         if person.at_place and random.random() > 0.3 * type(person.building).leave_chance:  # todo cambiar esto¿?
