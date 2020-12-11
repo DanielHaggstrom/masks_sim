@@ -3,8 +3,9 @@ from errors import FullBuilding
 
 # Clase básica Base_Building
 class Base_Building:
-    def __init__(self, name):
+    def __init__(self, name, weight):
         self.name = name
+        self.weight = weight
         self.db = {"datetime": [], "id": [],
                    "pcr": []}  # diccionario con listas par datetime, id de mascarilla y resultado de pcr
         self.occupancy = []  # lista de mascarillas dentro del edificio
@@ -12,12 +13,12 @@ class Base_Building:
     def enter(self, person):
         """Una mascarilla entra en el edificio, registrando su entrada."""
         self.occupancy.append(person)
-        person.building = self
+        person.current_building = self
 
     def exit(self, person):
         """Una mascarilla sale del edificio."""
         self.occupancy.remove(person)
-        person.building = None
+        person.current_building = None
 
     def roll(self, mod_infection):
         """Las mascarillas presentes entran en contacto, pudiendo infectarse."""
@@ -39,7 +40,7 @@ class Home(Base_Building):
     leave_change = None
 
     def __init__(self):
-        super().__init__("Home")
+        super().__init__("Home", 1)
 
     def contact(self):
         return None  # nadie se contagia en casa
@@ -48,9 +49,8 @@ class Home(Base_Building):
 # clase Building
 class Building(Base_Building):
     def __init__(self, name, weight, capacity):
-        self.weight = weight  # peso en las probabilidades
         self.capacity = capacity  # número máximo de gente permitida
-        super().__init__(name)
+        super().__init__(name, weight)
 
     def enter(self, person):
         """Una mascarilla entra en el edificio."""
@@ -77,13 +77,13 @@ class Hospital(Building):
         if len(self.hospitalized) >= self.beds:
             raise Exception("Hospital lleno de pacientes.")
         self.hospitalized.append(person)
-        person.building = self
+        person.current_building = self
         person.isHospitalized = True
 
     def discharge(self, person):
         """Un paciente es dado de alta."""
         self.hospitalized.remove(person)
-        person.building = None
+        person.current_building = None
         person.isHospitalized = False
 
     def contact(self):

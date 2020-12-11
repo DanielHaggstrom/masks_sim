@@ -37,10 +37,12 @@ class Person:
 
     def __init__(self, id):
         self.id = id
-        self.building = Person.home  # edificio en el que se encuentra actualmente
+        self.current_building = Person.home  # edificio en el que se encuentra actualmente
         self.isAlive = True  # la persona empieza viva
         self.isHospitalized = False  # no empieza en el hospital
         Person.alive.append(self)
+        self.buildings = {k: [math.ceil(random.triangular(0, 5, 2)) * x.weight for x in v]
+                          for k, v in Person.building_dict.items()}
         # decidimos si empieza infectado o no, y con qué severidad
         self.covid = Person.__covid_decider()
         self.pcr = PCR.NEGATIVE
@@ -59,10 +61,10 @@ class Person:
 
     def back_home(self):
         """La persona vuelve a su casa."""
-        if self.building != Person.home:
+        if self.current_building != Person.home:
             if self.isHospitalized:  # si está en el hospital, se queda allí
                 return None
-            self.building.exit(self)
+            self.current_building.exit(self)
             self.__enter_home()
 
     def move(self):
@@ -95,8 +97,8 @@ class Person:
         # si PCR es positivo y no está en un hospital, hay una probabilidad de ser ingresado
         if self.pcr == PCR.POSITIVE and not self.isHospitalized and\
                 self.covid == Covid.HIGH and random.random() < Person.hospital_chance:
-            hospital = Person.select_building("Hospital")
-            self.building.exit(self)
+            hospital = Person.select_building(self, "Hospital")
+            self.current_building.exit(self)
             try:
                 hospital.admission(self)
             except FullBuilding:
@@ -111,17 +113,17 @@ class Person:
                 Person.alive.remove(self)
                 Person.dead.append(self)
                 if self.isHospitalized:
-                    self.building.discharge(self)
+                    self.current_building.discharge(self)
                 else:
-                    self.building.exit(self)
+                    self.current_building.exit(self)
                 return None
             else:
                 self.covid = Covid.IMMUNE
                 # recibe el alta
                 if self.isHospitalized:
-                    self.building.discharge(self)
+                    self.current_building.discharge(self)
                 else:
-                    self.building.exit(self)
+                    self.current_building.exit(self)
                 self.__enter_home()
         # comprobamos si pierde la inmunidad
         if Person.current_datetime == self.immunity_datetime:
@@ -171,10 +173,10 @@ class Person:
         return Covid.HIGH
 
     @staticmethod
-    def select_building(building_type):
+    def select_building(person, building_type):
         """Selecciona un edificio del diccionario, dado el tipo, respetando los pesos."""
         return random.choices(population=Person.building_dict[building_type],
-                              weights=[element.weight for element in Person.building_dict[building_type]])[0]
+                              weights=person.buildings[building_type])[0]
 
     @staticmethod
     def select_type(type_weights_dict):
@@ -190,15 +192,15 @@ class Person:
             return None
         if person.pcr == PCR.POSITIVE and person.covid == Covid.LOW:
             return None
-        person.at_place = person.building == person.place
-        if person.at_place and random.random() > 0.3 * type(person.building).leave_chance:  # todo cambiar esto¿?
+        person.at_place = person.current_building == person.place
+        if person.at_place and random.random() > 0.3 * type(person.current_building).leave_chance:  # todo cambiar esto¿?
             # día normal
             return None
         # ¿se va de donde está?
-        if random.random() > type(person.building).leave_chance:
+        if random.random() > type(person.current_building).leave_chance:
             # se queda donde está
             return None
-        person.building.exit(person)
+        person.current_building.exit(person)
         for attempt in range(max_attempts):
             try:
                 # escoger a qué tipo de edificio ir
@@ -209,7 +211,7 @@ class Person:
                     return None
                 # escoger el edificio
                 # hay que hacer varios intentos en caso de que esté lleno
-                final_building = Person.select_building(building_type)
+                final_building = Person.select_building(person, building_type)
                 final_building.enter(person)
             except FullBuilding:
                 continue
@@ -225,9 +227,9 @@ class Worker(Person):
                     "Centro Comercial": 8, "Home": 9}  # peso en las probabilidades sobre a qué tipo de edificio ir
 
     def __init__(self, id):
-        self.place = Person.select_building("Trabajo")
-        self.at_place = False
         super().__init__(id)
+        self.place = Person.select_building(self, "Trabajo")
+        self.at_place = False
 
     def move(self):
         """El trabajador se mueve."""
@@ -240,9 +242,9 @@ class Student(Person):
                     "Centro Comercial": 4, "Home": 8}  # peso en las probabilidades sobre a qué tipo de edificio ir
 
     def __init__(self, id):
-        self.place = Person.select_building("Centro Educativo")
-        self.at_place = False
         super().__init__(id)
+        self.place = Person.select_building(self, "Centro Educativo")
+        self.at_place = False
 
     def move(self):
         """El estudiante se mueve."""
@@ -256,9 +258,9 @@ class Stay_at_home(Person):
                     "Centro Comercial": 7, "Home": 8}  # peso en las probabilidades sobre a qué tipo de edificio ir
 
     def __init__(self, id):
+        super().__init__(id)
         self.place = Person.home
         self.at_place = True
-        super().__init__(id)
 
     def move(self):
         """El amo de casa se mueve."""
