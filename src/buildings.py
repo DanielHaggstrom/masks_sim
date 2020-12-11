@@ -31,7 +31,7 @@ class Base_Building:
         for person in self.occupancy:
             self.db["datetime"].append(type(person).current_datetime)
             self.db["id"].append(person.id)
-            self.db["pcr"].append(person.pcr)
+            self.db["pcr"].append(person.pcr)  # todo esto no es correcto
 
 
 # clase Home
@@ -95,7 +95,7 @@ class Hospital(Building):
         for person in self.hospitalized:
             self.db["datetime"].append(type(person).current_datetime)
             self.db["id"].append(person.id)
-            self.db["pcr"].append(person.pcr)
+            self.db["pcr"].append(person.pcr)  # todo esto no es correcto
         super().update()
 
 

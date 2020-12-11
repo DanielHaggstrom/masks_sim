@@ -34,11 +34,11 @@ def main():
     Mall.leave_chance = 0.4
 
     Person.p_covid = 0.01  # probabilidad de tener covid al empezar la simulacion
+    # probabilidades de que alguien positivo sea asintomático, tenga severidad baja o alta
+    Person.covid_chances = [0.2, 0.95]
     Person.p_infect = 0.0001  # probabilidad de ser infectado durante una hora por una persona positiva
     Person.p_mortality = 0.034  # probabilidad de fallecer por la infección
     Person.hospital_chance = 0.001  # probabilidad de ir al hospital cuando se tiene un pcr positivo
-    Person.immunity = 30  # días de inmunidad después de recuperarte
-    Person.incubation_time = 5  # tiempo de incubación
     Person.current_datetime = start_date  # debe ser actualizada cada hora
 
     # creamos los edificios en Person.building_dict
