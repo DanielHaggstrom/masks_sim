@@ -215,6 +215,8 @@ class Person:
                 final_building.enter(person)
             except FullBuilding:
                 continue
+            except ClosedBuilding:
+                continue
             else:
                 break
         else:

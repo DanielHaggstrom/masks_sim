@@ -1,4 +1,15 @@
 from errors import FullBuilding
+from errors import ClosedBuilding
+from datetime import datetime
+
+
+# todo arreglar imports
+def time_in_range(start, end, x):
+    """Comprobar si una fecha está entre las indicadas."""
+    if start <= end:
+        return start <= x <= end
+    else:
+        return start <= x or x <= end
 
 
 # Clase básica Base_Building
@@ -118,6 +129,11 @@ class Learning_Center(Building):
 
     def __init__(self, name, weight, capacity):
         super().__init__(name, weight, capacity)
+
+    def enter(self, person):  # todo poner más bonito
+        if time_in_range(datetime(2020, 6, 23), datetime(2020, 9, 7), type(person).current_datetime):
+            raise ClosedBuilding("Edificio Lleno.")
+        super().enter(person)
 
     def contact(self):
         super().roll(Learning_Center.mod_infection)
