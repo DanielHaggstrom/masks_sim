@@ -7,7 +7,7 @@ from buildings import *
 from errors import *
 
 
-def daily_test(people_list, masks_dict, data_db):
+def daily_test(people_list, masks_dict, data_db, all_buildings, results_db):
     """Realizar un test de COVID-19 y guardar los resultados. Llamar cada día."""
     date = Person.current_datetime.date()
     col_masks_df = []
@@ -22,6 +22,19 @@ def daily_test(people_list, masks_dict, data_db):
     data_db["Contagiados"].append(col_masks_df.count(1))
     data_db["Inmunizados"].append(len([x for x in people_list if x.covid == Covid.IMMUNE]))
     masks_dict[date] = col_masks_df
+    results_db["fecha"].append(Person.current_datetime)
+    for edificio in all_buildings:
+        total = float(len(edificio.daily_log))
+        if total == 0:
+            results_db[edificio.name].append(0.0)
+            continue
+        positivo = 0.0
+        for persona in edificio.daily_log:
+            if persona.pcr == PCR.POSITIVE:
+                positivo += 1
+        ratio = positivo / total
+        edificio.daily_log = set()
+        results_db[edificio.name].append(ratio)
 
 
 class Covid:

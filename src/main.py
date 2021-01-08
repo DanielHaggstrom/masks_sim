@@ -85,6 +85,9 @@ def main():
     # creamos los dataframes
     mascarillas = {"id": [mask for mask in range(n)]}
     datos = {"Fallecidos": [], "Contagiados": [], "Inmunizados": [], "Fecha": []}
+    pos_por_edificio = {"fecha": []}
+    for edificio in edificios:
+        pos_por_edificio[edificio.name] = []
 
     # iniciamos la simulación
     print("Empezando simulación.")
@@ -104,7 +107,7 @@ def main():
                 persona.back_home()
             # hacemos tests
             datos["Fecha"].append(single_date.date())
-            daily_test(poblacion, mascarillas, datos)
+            daily_test(poblacion, mascarillas, datos, edificios, pos_por_edificio)
             continue
 
         if time_in_range(hora_limite_1, hora_limite_2, hour):
@@ -126,6 +129,8 @@ def main():
     mascarillas.to_csv("mascarillas.csv", sep=";")
     datos_df = pandas.DataFrame.from_dict(datos).set_index("Fecha")
     datos_df.to_csv("datos_diarios.csv", sep=";")
+    pos_por_edificio_df = pandas.DataFrame.from_dict(pos_por_edificio).set_index("fecha")
+    pos_por_edificio_df.to_csv("positivos_por_edificio.csv", sep=";")
     print("Terminado.")
 
 

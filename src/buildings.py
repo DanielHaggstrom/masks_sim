@@ -20,11 +20,17 @@ class Base_Building:
         self.db = {"datetime": [], "id": [],
                    "pcr": []}  # diccionario con listas par datetime, id de mascarilla y resultado de pcr
         self.occupancy = []  # lista de mascarillas dentro del edificio
+        self.daily_log = set()  # set de mascarillas que entran en un día
 
     def enter(self, person):
         """Una mascarilla entra en el edificio, registrando su entrada."""
         self.occupancy.append(person)
+        self.daily_log.add(person)
         person.current_building = self
+
+    def __clean(self):
+        """Elimina el registro diario. Llamar cada día, al final del día."""
+        self.daily_log = set()
 
     def exit(self, person):
         """Una mascarilla sale del edificio."""
@@ -88,6 +94,7 @@ class Hospital(Building):
         if len(self.hospitalized) >= self.beds:
             raise Exception("Hospital lleno de pacientes.")
         self.hospitalized.append(person)
+        self.daily_log.add(person)
         person.current_building = self
         person.isHospitalized = True
 
