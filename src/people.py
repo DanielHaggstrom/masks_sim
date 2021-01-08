@@ -1,10 +1,27 @@
 import random
 import math
-from datetime import timedelta
 import logging
+from datetime import timedelta
 import numpy as np
 from buildings import *
 from errors import *
+
+
+def daily_test(people_list, masks_dict, data_db):
+    """Realizar un test de COVID-19 y guardar los resultados. Llamar cada día."""
+    date = Person.current_datetime.date()
+    col_masks_df = []
+    for person in people_list:
+        if person.isAlive is False:
+            col_masks_df.append(-1)
+        elif person.pcr == PCR.POSITIVE:
+            col_masks_df.append(1)
+        else:
+            col_masks_df.append(0)
+    data_db["Fallecidos"].append(col_masks_df.count(-1))
+    data_db["Contagiados"].append(col_masks_df.count(1))
+    data_db["Inmunizados"].append(len([x for x in people_list if x.covid == Covid.IMMUNE]))
+    masks_dict[date] = col_masks_df
 
 
 class Covid:
