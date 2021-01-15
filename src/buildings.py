@@ -1,6 +1,7 @@
 from errors import FullBuilding
 from errors import ClosedBuilding
 from datetime import datetime
+from utils import Covid
 
 
 # todo arreglar imports
@@ -39,8 +40,8 @@ class Base_Building:
 
     def roll(self, mod_infection):
         """Las mascarillas presentes entran en contacto, pudiendo infectarse."""
-        negative = [person for person in self.occupancy if person.covid == "Negativo"]
-        infected_num = len([person for person in self.occupancy if person.covid == "Positivo"])
+        negative = [person for person in self.occupancy if person.covid == Covid.NEGATIVE]
+        infected_num = len([person for person in self.occupancy if person.covid != Covid.NEGATIVE])
         for person in negative:
             person.contact(infected_num, mod_infection)
 
@@ -49,7 +50,10 @@ class Base_Building:
         for person in self.occupancy:
             self.db["datetime"].append(type(person).current_datetime)
             self.db["id"].append(person.id)
-            self.db["pcr"].append(person.pcr)  # todo esto no es correcto
+            if not person.pcr:
+                self.db["pcr"].append("Negativo")
+            elif person.pcr:
+                self.db["pcr"].append("Positivo")
 
 
 # clase Home

@@ -5,24 +5,58 @@ from datetime import timedelta
 import numpy as np
 from buildings import *
 from errors import *
+from utils import PCR
+from utils import Covid
 
 
-def daily_test(people_list, masks_dict, data_db, all_buildings, results_db):
+def daily_test(people_list, masks_dict, severity, data_db, all_buildings, results_db):
     """Realizar un test de COVID-19 y guardar los resultados. Llamar cada día."""
     date = Person.current_datetime.date()
     col_masks_df = []
+    col_seveverity = []
+    dead = 0
+    infected = 0
+    asyntomatic = 0
+    low = 0
+    high = 0
+    immune = 0
+
     for person in people_list:
-        if person.isAlive is False:
+        if not person.isAlive:
             col_masks_df.append(-1)
+            col_seveverity.append(-1)
+            dead += 1
+        elif person.pcr == PCR.NEGATIVE:
+            col_masks_df.append(0)
+            if person.covid == Covid.IMMUNE:
+                col_seveverity.append(4)
+                immune += 1
+            else:
+                col_seveverity.append(0)
         elif person.pcr == PCR.POSITIVE:
             col_masks_df.append(1)
-        else:
-            col_masks_df.append(0)
-    data_db["Fallecidos"].append(col_masks_df.count(-1))
-    data_db["Contagiados"].append(col_masks_df.count(1))
-    data_db["Inmunizados"].append(len([x for x in people_list if x.covid == Covid.IMMUNE]))
+            infected += 1
+            if person.covid == Covid.ASINTOMATIC:
+                col_seveverity.append(1)
+                asyntomatic += 1
+            elif person.covid == Covid.LOW:
+                col_seveverity.append(2)
+                low += 1
+            elif person.covid == Covid.HIGH:
+                col_seveverity.append(3)
+                high += 1
+
     masks_dict[date] = col_masks_df
-    results_db["fecha"].append(Person.current_datetime)
+    severity[date] = col_seveverity
+
+    data_db["Fallecidos"].append(dead)
+    data_db["Contagiados"].append(infected)
+    data_db["Inmunizados"].append(immune)
+    data_db["Asintomáticos"].append(asyntomatic)
+    data_db["Casos leves"].append(low)
+    data_db["Casos graves"].append(high)
+
+    results_db["fecha"].append(date)
     for edificio in all_buildings:
         total = float(len(edificio.daily_log))
         if total == 0:
@@ -37,26 +71,12 @@ def daily_test(people_list, masks_dict, data_db, all_buildings, results_db):
         results_db[edificio.name].append(ratio)
 
 
-class Covid:
-    """Constantes que representan los distintos niveles de severidad de la enfermedad."""
-    NEGATIVE = "NEGATIVE"
-    ASINTOMATIC = "ASINTOMATIC"
-    LOW = "LOW"
-    HIGH = "HIGH"
-    IMMUNE = "IMMUNE"
-
-
-class PCR:
-    """Constantes del test PCR."""
-    NEGATIVE = False
-    POSITIVE = True
-
-
 # clase Person
 class Person:
     p_covid = None  # probabilidad de tener covid al empezar la simulacion
     p_infect = None  # probabilidad de ser infectado durante una hora por una persona positiva
     p_mortality = None  # probabilidad de fallecer por la infección
+    go_home_chance = None
     hospital_chance = None  # probabilidad de ir al hospital cuando se tiene un pcr positivo
     current_datetime = None  # debe ser actualizada cada hora, e inicializada al principio de la simulación
     building_dict = None  # keys con los tipos de edificios, y los valores son listas de los edificios de cada tipo
@@ -74,7 +94,7 @@ class Person:
         self.buildings = {k: [math.ceil(random.triangular(0, 5, 2)) * x.weight for x in v]
                           for k, v in Person.building_dict.items()}
         # decidimos si empieza infectado o no, y con qué severidad
-        self.covid = Person.__covid_decider()
+        self.covid = Person.__covid_decider(True)
         self.pcr = PCR.NEGATIVE
         if self.covid == Covid.NEGATIVE:
             self.pcr_datetime = None  # fecha a partir de la cual empieza a dar positivo en el PCR
@@ -104,7 +124,7 @@ class Person:
     def infect(self):
         """La persona se contagia de COVID-19."""
         logging.debug("persona " + str(self.id) + " ha sido infectada")
-        self.covid = Person.__covid_decider(True)
+        self.covid = Person.__covid_decider()
         self.pcr_datetime = Person.current_datetime + timedelta(days=Person.__get_incubation_length())
         self.recovery_datetime = self.pcr_datetime + timedelta(days=Person.__get_disease_length())
         self.immunity_datetime = self.recovery_datetime + timedelta(days=Person.__get_immunity_length())
@@ -133,7 +153,7 @@ class Person:
                 hospital.admission(self)
             except FullBuilding:
                 self.__enter_home()
-        if self.pcr == PCR.POSITIVE and self.covid == Covid.LOW:
+        if self.pcr == PCR.POSITIVE and self.covid == Covid.LOW and random.random() < Person.go_home_chance:
             self.back_home()
         # comprobamos si se recupera o fallece
         if Person.current_datetime == self.recovery_datetime:
@@ -182,7 +202,7 @@ class Person:
         # todo cambiar para una longitud más realista
         length = 0
         while length <= 140:
-            length = np.random.normal(loc=170, scale=30)
+            length = np.random.normal(loc=150, scale=30)
         length = math.floor(length)
         return length
 
@@ -190,7 +210,7 @@ class Person:
     def __covid_decider(skip=False):
         """Decide si una persona tiene COVID-19 y la severidad."""
         # las probabilidades de la severidad asumen que la persona ya tiene coronavirus
-        if random.random() > Person.p_covid or skip:
+        if random.random() > Person.p_covid and skip:
             return Covid.NEGATIVE
         # aquí necesitamos dos números para separar en tres segmentos nuestro resultado
         threshold_one = Person.covid_chances[0]
@@ -215,19 +235,18 @@ class Person:
                               weights=list(type_weights_dict.values()))[0]
 
     @staticmethod
-    def try_loop(person, max_attempts=5):
+    def try_loop(person, building_type_weights, max_attempts=3):
         """Una persona intenta ejecutar el método move() de su clase.
         Si tras varios intentos no logra encontrar un sitio con sitio, se va a casa."""
         if person.isHospitalized:
             return None
-        if person.pcr == PCR.POSITIVE and person.covid == Covid.LOW:
-            return None
         person.at_place = person.current_building == person.place
-        if person.at_place and random.random() > 0.3 * type(person.current_building).leave_chance:  # todo cambiar esto¿?
+        current_building_type = type(person.current_building)
+        if person.at_place and random.random() > 0.3 * current_building_type.leave_chance:
             # día normal
             return None
         # ¿se va de donde está?
-        if random.random() > type(person.current_building).leave_chance:
+        if random.random() > current_building_type.leave_chance:
             # se queda donde está
             return None
         person.current_building.exit(person)
@@ -235,7 +254,7 @@ class Person:
             try:
                 # escoger a qué tipo de edificio ir
                 # hay que hacer varios intentos en caso de que todos los de ese tipo estén llenos
-                building_type = Person.select_type(type(person).type_weights)
+                building_type = Person.select_type(building_type_weights)
                 if building_type == "Home":
                     person.__enter_home()
                     return None
@@ -265,7 +284,7 @@ class Worker(Person):
 
     def move(self):
         """El trabajador se mueve."""
-        Person.try_loop(self)
+        Person.try_loop(self, Worker.type_weights)
 
 
 # clase Student
@@ -280,11 +299,10 @@ class Student(Person):
 
     def move(self):
         """El estudiante se mueve."""
-        Person.try_loop(self)
-
-    # clase Stay_at_home
+        Person.try_loop(self, Student.type_weights)
 
 
+# clase Stay_at_home
 class Stay_at_home(Person):
     type_weights = {"Trabajo": 1, "Hospital": 1, "Farmacia": 3, "Centro Educativo": 1, "Supermercado": 6,
                     "Centro Comercial": 7, "Home": 8}  # peso en las probabilidades sobre a qué tipo de edificio ir
@@ -296,4 +314,4 @@ class Stay_at_home(Person):
 
     def move(self):
         """El amo de casa se mueve."""
-        Person.try_loop(self)
+        Person.try_loop(self, Stay_at_home.type_weights)

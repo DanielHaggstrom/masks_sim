@@ -14,3 +14,18 @@ def time_in_range(start, end, x):
         return start <= x <= end
     else:
         return start <= x or x <= end
+
+
+class Covid:
+    """Constantes que representan los distintos niveles de severidad de la enfermedad."""
+    NEGATIVE = "NEGATIVE"
+    ASINTOMATIC = "ASINTOMATIC"
+    LOW = "LOW"
+    HIGH = "HIGH"
+    IMMUNE = "IMMUNE"
+
+
+class PCR:
+    """Constantes del test PCR."""
+    NEGATIVE = False
+    POSITIVE = True

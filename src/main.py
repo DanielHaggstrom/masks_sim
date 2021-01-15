@@ -6,15 +6,16 @@ from utils import *
 
 # iniciamos la ejecución
 def main():
+    print("Empieza main.")
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
     logging.basicConfig(level=logging.DEBUG, filename='log.txt', filemode='w', format='%(message)s')
 
     # parámetros de la simulación
     random.seed(4862)
-    n = 5000  # número de gente
+    n = 50000  # número de gente
     person_types = ["Worker", "Student", "Stay at home"]  # probabilidad de tipo de persona
-    person_weights = [4, 3, 2]
+    person_weights = [8, 2, 3]
 
     start_date = datetime(2020, 3, 1)
     end_date = datetime(2020, 12, 1)
@@ -37,24 +38,26 @@ def main():
     Person.p_covid = 0.01  # probabilidad de tener covid al empezar la simulacion
     # probabilidades de que alguien positivo sea asintomático, tenga severidad baja o alta
     Person.covid_chances = [0.2, 0.95]
-    Person.p_infect = 0.0001  # probabilidad de ser infectado durante una hora por una persona positiva
+    Person.p_infect = 0.00001  # probabilidad de ser infectado durante una hora por una persona positiva
     Person.p_mortality = 0.034  # probabilidad de fallecer por la infección
-    Person.hospital_chance = 0.001  # probabilidad de ir al hospital cuando se tiene un pcr positivo
+    Person.go_home_chance = 0.6  # probabilidad de irse a casa si tiene un pcr positivo y caso leve
+    Person.hospital_chance = 0.9  # probabilidad de ir al hospital cuando se tiene un pcr positivo y es un caso grave
     Person.current_datetime = start_date  # debe ser actualizada cada hora
 
     # creamos los edificios en Person.building_dict
     # contiene keys con los tipos de edificios, y los valores son listas de los edificios de cada tipo
-    Person.building_dict = {"Trabajo": [Workplace("Trabajo 1", 1, n * 0.1),
-                                        Workplace("Trabajo 2", 1, n * 0.1),
+    Person.building_dict = {"Trabajo": [Workplace("Trabajo 1", 1, n * 0.2),
+                                        Workplace("Trabajo 2", 1, n * 0.2),
                                         Workplace("Trabajo 3", 2, n * 0.2),
                                         Workplace("Trabajo 4", 2, n * 0.15)],
                             "Hospital": [Hospital("Hospital 1", 2, n * 0.35, n * 0.2),
                                          Hospital("Hospital 2", 3, n * 0.4, n * 0.3)],
-                            "Farmacia": [Pharmacy("Farmacia", 3, n * 0.2)],
+                            "Farmacia": [Pharmacy("Farmacia 1", 3, n * 0.2)],
                             "Centro Educativo": [Learning_Center("Colegio 1", 2, n * 0.2),
                                                  Learning_Center("Colegio 2", 2, n * 0.2),
-                                                 Learning_Center("Universidad", 3, n * 0.3)],
-                            "Supermercado": [Market("Supermercado", 3, n * 0.2)],
+                                                 Learning_Center("Universidad", 3, n * 0.35)],
+                            "Supermercado": [Market("Supermercado 1", 3, n * 0.2),
+                                             Market("Supermercado 2", 1, n * 0.1)],
                             "Centro Comercial": [Mall("Centro Comercial", 1, n * 0.5)],
                             "Home": [Person.home]
                             }
@@ -84,7 +87,9 @@ def main():
 
     # creamos los dataframes
     mascarillas = {"id": [mask for mask in range(n)]}
-    datos = {"Fallecidos": [], "Contagiados": [], "Inmunizados": [], "Fecha": []}
+    datos_gravedad = mascarillas.copy()
+    datos = {"Fallecidos": [], "Contagiados": [], "Inmunizados": [], "Fecha": [], "Asintomáticos": [],
+             "Casos leves": [], "Casos graves": []}
     pos_por_edificio = {"fecha": []}
     for edificio in edificios:
         pos_por_edificio[edificio.name] = []
@@ -102,12 +107,14 @@ def main():
         hour = time(single_date.hour, 0, 0)
 
         if hour == hora_limite_1:
+            if len(datos["Fallecidos"]) > 0:
+                print(str(single_date) + " " + str(datos["Fallecidos"][-1]) + " " + str(datos["Contagiados"][-1]))
             # todos a casa
             for persona in Person.alive:
                 persona.back_home()
             # hacemos tests
             datos["Fecha"].append(single_date.date())
-            daily_test(poblacion, mascarillas, datos, edificios, pos_por_edificio)
+            daily_test(poblacion, mascarillas, datos_gravedad, datos, edificios, pos_por_edificio)
             continue
 
         if time_in_range(hora_limite_1, hora_limite_2, hour):
@@ -131,6 +138,8 @@ def main():
     datos_df.to_csv("datos_diarios.csv", sep=";")
     pos_por_edificio_df = pandas.DataFrame.from_dict(pos_por_edificio).set_index("fecha")
     pos_por_edificio_df.to_csv("positivos_por_edificio.csv", sep=";")
+    datos_gravedad = pandas.DataFrame.from_dict(datos_gravedad).set_index("id")
+    datos_gravedad.to_csv("datos_gravedad.csv", sep=";")
     print("Terminado.")
 
 
