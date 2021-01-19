@@ -181,7 +181,6 @@ class Person:
 
     @staticmethod
     def __get_disease_length():
-        # todo cambiar para una longitud más realista
         length = 0
         while length <= 10:
             length = np.random.normal(loc=20, scale=7)
@@ -190,7 +189,6 @@ class Person:
 
     @staticmethod
     def __get_incubation_length():
-        # todo cambiar para una longitud más realista
         length = 0
         while length <= 5:
             length = np.random.normal(loc=9, scale=2)
@@ -199,7 +197,6 @@ class Person:
 
     @staticmethod
     def __get_immunity_length():
-        # todo cambiar para una longitud más realista
         length = 0
         while length <= 140:
             length = np.random.normal(loc=150, scale=30)

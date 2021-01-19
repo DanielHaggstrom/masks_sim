@@ -4,7 +4,6 @@ from datetime import datetime
 from utils import Covid
 
 
-# todo arreglar imports
 def time_in_range(start, end, x):
     """Comprobar si una fecha está entre las indicadas."""
     if start <= end:
@@ -82,7 +81,6 @@ class Building(Base_Building):
 
 # clase Hospital
 class Hospital(Building):
-    # todo que el hospital distinga ente pacientes y visitantes
     leave_chance = None
     mod_infection = None
 
@@ -110,14 +108,17 @@ class Hospital(Building):
 
     def contact(self):
         """Contagios entre todos los visitantes del hospital."""
-        super().roll(Hospital.mod_infection)  # todo implementar correctamente el contagio en un hospital
+        super().roll(Hospital.mod_infection)
 
     def update(self):
         """Registra a todos los visitantes y enfermos en la base de datos."""
         for person in self.hospitalized:
             self.db["datetime"].append(type(person).current_datetime)
             self.db["id"].append(person.id)
-            self.db["pcr"].append(person.pcr)  # todo esto no es correcto
+            if person.pcr:
+                self.db["pcr"].append("Positivo")
+            else:
+                self.db["pcr"].append("Negativo")
         super().update()
 
 
@@ -141,7 +142,7 @@ class Learning_Center(Building):
     def __init__(self, name, weight, capacity):
         super().__init__(name, weight, capacity)
 
-    def enter(self, person):  # todo poner más bonito
+    def enter(self, person):
         if time_in_range(datetime(2020, 6, 23), datetime(2020, 9, 7), type(person).current_datetime):
             raise ClosedBuilding("Edificio Lleno.")
         super().enter(person)
