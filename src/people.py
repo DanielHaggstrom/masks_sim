@@ -76,8 +76,8 @@ class Person:
     p_covid = None  # probabilidad de tener covid al empezar la simulacion
     p_infect = None  # probabilidad de ser infectado durante una hora por una persona positiva
     p_mortality = None  # probabilidad de fallecer por la infección
-    go_home_chance = None
-    hospital_chance = None  # probabilidad de ir al hospital cuando se tiene un pcr positivo
+    go_home_chance = None  # probabilidad de irse a casa con Covid leve y pcr positivo
+    hospital_chance = None  # probabilidad de ir al hospital cuando se tiene un pcr positivo y un caso grave
     current_datetime = None  # debe ser actualizada cada hora, e inicializada al principio de la simulación
     building_dict = None  # keys con los tipos de edificios, y los valores son listas de los edificios de cada tipo
     covid_chances = {}

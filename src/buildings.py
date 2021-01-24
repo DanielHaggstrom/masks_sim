@@ -184,4 +184,4 @@ class Mall(Building):
         super().__init__(name, weight, capacity)
 
     def contact(self):
-        super().roll(Market.mod_infection)
+        super().roll(Mall.mod_infection)
