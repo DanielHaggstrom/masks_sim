@@ -1,7 +1,24 @@
-from datetime import time
+import logging
+import random
+from datetime import datetime, time
+
 import pandas
-from people import *
-from utils import *
+
+from people import (
+    Hospital,
+    Home,
+    Learning_Center,
+    Mall,
+    Market,
+    Person,
+    Pharmacy,
+    Stay_at_home,
+    Student,
+    Worker,
+    Workplace,
+    daily_test,
+)
+from utils import daterange, time_in_range
 
 
 # iniciamos la ejecución
@@ -43,6 +60,11 @@ def main():
     Person.go_home_chance = 0.6  # probabilidad de irse a casa si tiene un pcr positivo y caso leve
     Person.hospital_chance = 0.9  # probabilidad de ir al hospital cuando se tiene un pcr positivo y es un caso grave
     Person.current_datetime = start_date  # debe ser actualizada cada hora
+
+    # reiniciamos el hogar compartido entre ejecuciones
+    Person.home.occupancy = []
+    Person.home.daily_log = set()
+    Person.home.db = {"datetime": [], "id": [], "pcr": []}
 
     # creamos los edificios en Person.building_dict
     # contiene keys con los tipos de edificios, y los valores son listas de los edificios de cada tipo
@@ -143,4 +165,5 @@ def main():
     print("Terminado.")
 
 
-main()
+if __name__ == "__main__":
+    main()

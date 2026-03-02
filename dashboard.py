@@ -8,6 +8,7 @@ import dash_daq as daq
 import plotly.express as px
 import numpy as np
 import networkx as nx
+from pathlib import Path
 from dash.dependencies import Input, Output
 import dash_table
 
@@ -18,22 +19,28 @@ import dash_table
 
 #Cargamos todos los datasets
 
-path = r'C:\\Users\\jhern\\Documents\\datasets\\alvaro\\ultimos datos\\datos\\'
-df = pd.read_csv(path + "mascarillas.csv", delimiter=';')
-cc = pd.read_csv(path + "Centro Comercial.csv", sep=";")
-h1 = pd.read_csv(path + "Hospital 1.csv", sep=";")
-h2 = pd.read_csv(path + "Hospital 2.csv", sep=";")
-c1 = pd.read_csv(path + "Colegio 1.csv", sep=";")
-c2 = pd.read_csv(path + "Colegio 2.csv", sep=";")
-farm = pd.read_csv(path + "Farmacia 1.csv", sep=";")
-super1 = pd.read_csv(path + "Supermercado 1.csv", sep=";")
-super2 = pd.read_csv(path + "Supermercado 2.csv", sep=";")
-t1 = pd.read_csv(path + "Trabajo 1.csv", sep=";")
-t2 = pd.read_csv(path + "Trabajo 2.csv", sep=";")
-t3 = pd.read_csv(path + "Trabajo 3.csv", sep=";")
-t4 = pd.read_csv(path + "Trabajo 4.csv", sep=";")
-uni = pd.read_csv(path + "Universidad.csv", sep=";")
-pred = pd.read_csv(path + "predicciones.csv", sep=";")
+DATA_DIR = Path(__file__).resolve().parent
+
+
+def read_csv(filename, **kwargs):
+    return pd.read_csv(DATA_DIR / filename, **kwargs)
+
+
+df = read_csv("mascarillas.csv", delimiter=';')
+cc = read_csv("Centro Comercial.csv", sep=";")
+h1 = read_csv("Hospital 1.csv", sep=";")
+h2 = read_csv("Hospital 2.csv", sep=";")
+c1 = read_csv("Colegio 1.csv", sep=";")
+c2 = read_csv("Colegio 2.csv", sep=";")
+farm = read_csv("Farmacia 1.csv", sep=";")
+super1 = read_csv("Supermercado 1.csv", sep=";")
+super2 = read_csv("Supermercado 2.csv", sep=";")
+t1 = read_csv("Trabajo 1.csv", sep=";")
+t2 = read_csv("Trabajo 2.csv", sep=";")
+t3 = read_csv("Trabajo 3.csv", sep=";")
+t4 = read_csv("Trabajo 4.csv", sep=";")
+uni = read_csv("Universidad.csv", sep=";")
+pred = read_csv("predicciones.csv", sep=";")
 #pred.rename(columns={ pred.columns[0]: "fecha" }, inplace = True)
 pred = pred.iloc[:-2]
 for i in pred.iloc[:,1:].columns:
@@ -237,7 +244,7 @@ mapa2.update_layout(
 
 # Curva fallecidos diaria
 
-datos_diarios = pd.read_csv(path + "datos_diarios.csv", delimiter=';')
+datos_diarios = read_csv("datos_diarios.csv", delimiter=';')
 
 fallecidos = datos_diarios["Fallecidos"]
 fechas = datos_diarios["Fecha"]
@@ -254,7 +261,7 @@ fallecidos_diario.update_layout(title = {
                   margin=dict(l=15,r=20,b=20,t=40,pad=4))
 
 #Curva fallecidos acumulada
-df = pd.read_csv(path + "datos_diarios.csv", delimiter=';')
+df = read_csv("datos_diarios.csv", delimiter=';')
 fallecidos = df["Fallecidos"]
 fechas = df["Fecha"]
 fallecidos_acumulado = go.Figure(data=[go.Scatter(x=fechas ,y=fallecidos)])
@@ -269,7 +276,7 @@ fallecidos_acumulado.update_layout(title = {
                   margin=dict(l=15,r=20,b=20,t=40,pad=4))
 
 #curva Contagios diarios
-df = pd.read_csv(path + "datos_diarios.csv", delimiter=';')
+df = read_csv("datos_diarios.csv", delimiter=';')
 contagiados = df["Contagiados"]
 contagios_diarios = go.Figure(data=[go.Scatter(x=fechas ,y=contagiados)])
 contagios_diarios.update_layout(title = {
@@ -284,7 +291,7 @@ contagios_diarios.update_layout(title = {
 
 # curva Contagios acumulados
 
-masc = pd.read_csv(path + "mascarillas.csv" ,delimiter=';')
+masc = read_csv("mascarillas.csv" ,delimiter=';')
 
 
 def repeatingNumbers(numList) :
@@ -342,7 +349,7 @@ contagios_acumulados.update_layout(title={
 contador_fallecidos_diario = str(fallecidos_diarios[-1])
 
 #contador contagios diario
-df = pd.read_csv(path + "datos_diarios.csv", delimiter=';')
+df = read_csv("datos_diarios.csv", delimiter=';')
 contagiados = list(df["Contagiados"])
 contador_contagios_diario = str(contagiados[-1])
 
@@ -386,7 +393,7 @@ gauge_acumulado.update_layout(
 
 
 # PIE CHART
-datos_diarios = pd.read_csv(path + "datos_diarios.csv", sep=";")
+datos_diarios = read_csv("datos_diarios.csv", sep=";")
 
 grav = datos_diarios[["Asintomáticos", "Casos leves", "Casos graves"]]
 last_row = grav.tail(1)
@@ -408,7 +415,7 @@ piechart.update_layout(title_x = 0.5, showlegend=True, legend=dict(orientation="
 ))
 
 # PIE CHART ACUMULADO
-grav = pd.read_csv(path + "datos_gravedad.csv", sep=";")
+grav = read_csv("datos_gravedad.csv", sep=";")
 df_list = grav.values.tolist()
 def repeatingNumbers2(numList, numero) :
     i = 0
@@ -450,20 +457,20 @@ piechart_acumulado.update_layout(title_x = 0.5, showlegend=True, legend=dict(ori
 
 #GRAFO
 #volvemos a cargar los datos
-df = pd.read_csv(path + "mascarillas.csv", delimiter=';')
-cc = pd.read_csv(path + "Centro Comercial.csv", sep=";")
-h1 = pd.read_csv(path + "Hospital 1.csv", sep=";")
-h2 = pd.read_csv(path + "Hospital 2.csv", sep=";")
-c1 = pd.read_csv(path + "Colegio 1.csv", sep=";")
-c2 = pd.read_csv(path + "Colegio 2.csv", sep=";")
-farm = pd.read_csv(path + "Farmacia 1.csv", sep=";")
-sp1 = pd.read_csv(path + "Supermercado 1.csv", sep=";")
-sp2 = pd.read_csv(path + "Supermercado 2.csv", sep=";")
-t1 = pd.read_csv(path + "Trabajo 1.csv", sep=";")
-t2 = pd.read_csv(path + "Trabajo 2.csv", sep=";")
-t3 = pd.read_csv(path + "Trabajo 3.csv", sep=";")
-t4 = pd.read_csv(path + "Trabajo 4.csv", sep=";")
-uni = pd.read_csv(path + "Universidad.csv", sep=";")
+df = read_csv("mascarillas.csv", delimiter=';')
+cc = read_csv("Centro Comercial.csv", sep=";")
+h1 = read_csv("Hospital 1.csv", sep=";")
+h2 = read_csv("Hospital 2.csv", sep=";")
+c1 = read_csv("Colegio 1.csv", sep=";")
+c2 = read_csv("Colegio 2.csv", sep=";")
+farm = read_csv("Farmacia 1.csv", sep=";")
+sp1 = read_csv("Supermercado 1.csv", sep=";")
+sp2 = read_csv("Supermercado 2.csv", sep=";")
+t1 = read_csv("Trabajo 1.csv", sep=";")
+t2 = read_csv("Trabajo 2.csv", sep=";")
+t3 = read_csv("Trabajo 3.csv", sep=";")
+t4 = read_csv("Trabajo 4.csv", sep=";")
+uni = read_csv("Universidad.csv", sep=";")
 
 cc['edificio'] = 'Centro Comercial'
 h1['edificio'] = 'Hospital 1'

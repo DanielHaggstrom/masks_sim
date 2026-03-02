@@ -57,7 +57,7 @@ class Base_Building:
 
 # clase Home
 class Home(Base_Building):
-    leave_change = None
+    leave_chance = None
 
     def __init__(self):
         super().__init__("Home", 1)
@@ -94,7 +94,7 @@ class Hospital(Building):
     def admission(self, person):
         """Un paciente es ingresado."""
         if len(self.hospitalized) >= self.beds:
-            raise Exception("Hospital lleno de pacientes.")
+            raise FullBuilding("Hospital lleno de pacientes.")
         self.hospitalized.append(person)
         self.daily_log.add(person)
         person.current_building = self
